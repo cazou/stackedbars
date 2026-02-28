@@ -1,23 +1,60 @@
 use std::{collections::HashMap, fmt::Display};
+use colored::Colorize;
 
 #[derive(Debug)]
 struct BarItem {
     label: String,
     width: usize,
+    hash: u32,
     count: f64,
 }
 
 impl BarItem {
     fn new(label: &str, count: f64, width: usize, sum: f64) -> BarItem {
         let this_width = ((width as f64 * count) / sum).floor() as usize;
+        let hash = Self::compute_hash(label, count);
 
         // TODO: Avoid to_string(), store &str with lifetime
         BarItem {
             label: label.to_string(),
             width: this_width,
+            hash,
             count,
         }
     }
+
+    fn compute_hash(label: &str, count: f64) -> u32 {
+        let mut hash = 0x101010;
+        let mut i = 0;
+
+        for b in label.as_bytes() {
+            hash += (*b as u32) << (i * 8);
+            i += 1;
+            if i == 3 {
+                i = 0;
+            }
+            if hash & 0xff000000 != 0 {
+                let surplus = (hash & 0xff000000) >> 24;
+                hash += surplus;
+                hash &= 0xffffff;
+            }
+        }
+
+        for b in count.to_le_bytes() {
+            hash += (b as u32) << (i * 8);
+            i += 1;
+            if i == 3 {
+                i = 0;
+            }
+            if hash & 0xff000000 != 0 {
+                let surplus = (hash & 0xff000000) >> 24;
+                hash += surplus;
+                hash &= 0xffffff;
+            }
+        }
+
+        hash
+    } 
 }
 
 impl PartialEq for BarItem {
@@ -46,8 +83,9 @@ impl Ord for BarItem {
 
 impl Display for BarItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: If the label can fit in the bar, print it there
         for _ in 0..self.width {
-            write!(f, "{}", self.label)?;
+            write!(f, "{}", " ".on_truecolor((self.hash & 0xff) as u8, ((self.hash & 0xff00) >> 8) as u8, ((self.hash & 0xff0000) >> 16) as u8))?;
         }
         Ok(())
     }
