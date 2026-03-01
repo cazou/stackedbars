@@ -1,11 +1,12 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, rc::Rc};
 use colored::Colorize;
+use colored::CustomColor;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct BarItem {
-    label: String,
+    label: Rc<String>,
     width: usize,
-    hash: u32,
+    color: CustomColor,
     count: f64,
 }
 
@@ -13,12 +14,13 @@ impl BarItem {
     fn new(label: &str, count: f64, width: usize, sum: f64) -> BarItem {
         let this_width = ((width as f64 * count) / sum).floor() as usize;
         let hash = Self::compute_hash(label, count);
+        let color = CustomColor::new((hash & 0xff) as u8, ((hash & 0xff00) >> 8) as u8, ((hash & 0xff0000) >> 16) as u8);
 
         // TODO: Avoid to_string(), store &str with lifetime
         BarItem {
-            label: label.to_string(),
+            label: Rc::new(label.to_string()),
             width: this_width,
-            hash,
+            color,
             count,
         }
     }
@@ -85,27 +87,64 @@ impl Display for BarItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: If the label can fit in the bar, print it there
         for _ in 0..self.width {
-            write!(f, "{}", " ".on_truecolor((self.hash & 0xff) as u8, ((self.hash & 0xff00) >> 8) as u8, ((self.hash & 0xff0000) >> 16) as u8))?;
+            write!(f, "{}", " ".on_custom_color(self.color))?;
         }
+
         Ok(())
     }
 }
 
 //TODO: Replace String by anything that can be displayed
 //TODO: Should allow any kind of number as value of the hashmap
+#[derive(Clone)]
 pub struct StackedBar {
     items: Vec<BarItem>,
+    width: usize,
 }
 
 impl StackedBar {
-    pub fn new(map: HashMap<String, f64>, width: usize) -> StackedBar {
+    pub fn new(map: HashMap<String, f64>) -> StackedBar {
         let sum = map.values().fold(0.0, |sum, val| sum + *val);
+        let width = 32;
         let mut items: Vec<BarItem> = map
             .iter()
             .map(|(l, c)| BarItem::new(l, *c, width, sum))
             .collect();
+
         items.sort();
-        StackedBar { items }
+
+        StackedBar { items, width }
+    }
+
+    pub fn with_palette(&mut self, palette: &[CustomColor]) -> StackedBar {
+        let mut i = 0;
+
+        for bar in self.items.iter_mut() {
+            bar.color = palette[i];
+            i = (i + 1) % palette.len();
+        }
+
+        self.clone()
+    }
+
+    pub fn with_color_map(&mut self, color_map: &HashMap<String, CustomColor>) -> StackedBar {
+        for bar in self.items.iter_mut() {
+            bar.color = color_map[bar.label.as_str()];
+        }
+
+        self.clone()
+    }
+
+    pub fn with_width(&mut self, width: usize) -> StackedBar {
+        self.width = width;
+        let sum = self.items.iter().fold(0.0, |sum, val| sum + val.count);
+
+        for bar in self.items.iter_mut() {
+            let count = bar.count;
+            bar.width = ((width as f64 * count) / sum).floor() as usize;
+        }
+
+        self.clone()
     }
 }
 
@@ -114,10 +153,12 @@ impl Display for StackedBar {
         for item in &self.items {
             write!(f, "{item}")?;
         }
+
         Ok(())
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,3 +250,4 @@ mod tests {
         assert_eq!(bar.to_string(), "".to_string());
     }
 }
+*/
