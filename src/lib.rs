@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt::Display, rc::Rc};
 use colored::Colorize;
 use colored::CustomColor;
+use std::{collections::HashMap, fmt::Display, rc::Rc};
 
 #[derive(Debug, Clone)]
 struct BarItem {
@@ -8,13 +8,20 @@ struct BarItem {
     width: usize,
     color: CustomColor,
     count: f64,
+    parent_sum: f64,
+    label_format: String,
+    force_label: bool,
 }
 
 impl BarItem {
     fn new(label: &str, count: f64, width: usize, sum: f64) -> BarItem {
         let this_width = ((width as f64 * count) / sum).floor() as usize;
         let hash = Self::compute_hash(label, count);
-        let color = CustomColor::new((hash & 0xff) as u8, ((hash & 0xff00) >> 8) as u8, ((hash & 0xff0000) >> 16) as u8);
+        let color = CustomColor::new(
+            (hash & 0xff) as u8,
+            ((hash & 0xff00) >> 8) as u8,
+            ((hash & 0xff0000) >> 16) as u8,
+        );
 
         // TODO: Avoid to_string(), store &str with lifetime
         BarItem {
@@ -22,6 +29,9 @@ impl BarItem {
             width: this_width,
             color,
             count,
+            parent_sum: sum,
+            label_format: "".to_string(),
+            force_label: false,
         }
     }
 
@@ -56,7 +66,61 @@ impl BarItem {
         }
 
         hash
-    } 
+    }
+
+    fn render_label(&self, format: &str) -> String {
+        let mut builder = format.to_string();
+        builder = builder.replace("%L", self.label.as_ref());
+        builder = builder.replace("%C", format!("{}", self.count).as_str());
+        builder = builder.replace(
+            "%P",
+            format!("{:.2}", 100f64 * self.count / self.parent_sum).as_str(),
+        );
+
+        builder
+    }
+
+    fn render(&self) -> String {
+        let mut builder = self.render_label(&self.label_format);
+
+        if builder.len() > self.width {
+            if self.force_label {
+                builder.truncate(self.width);
+            } else {
+                builder = "".to_string();
+            }
+        }
+
+        builder = (0..(self.width - builder.len()) / 2)
+            .map(|_| ' ')
+            .collect::<String>()
+            + builder.as_str()
+            + (0..(self.width - builder.len()) / 2)
+                .map(|_| ' ')
+                .collect::<String>()
+                .as_str();
+
+        if builder.len() < self.width {
+            builder += (builder.len()..self.width)
+                .map(|_| ' ')
+                .collect::<String>()
+                .as_str();
+        }
+
+        let label_color =
+            CustomColor::new(255 - self.color.r, 255 - self.color.g, 255 - self.color.b);
+
+        // FIXME: Is to string avoidable ?
+        builder
+            .on_custom_color(self.color)
+            .custom_color(label_color)
+            .to_string()
+    }
+
+    fn render_outline_label(&self, format: &str) -> String {
+        let label = self.render_label(format);
+        " ".on_custom_color(self.color).to_string() + ": " + label.as_str()
+    }
 }
 
 impl PartialEq for BarItem {
@@ -85,12 +149,7 @@ impl Ord for BarItem {
 
 impl Display for BarItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: If the label can fit in the bar, print it there
-        for _ in 0..self.width {
-            write!(f, "{}", " ".on_custom_color(self.color))?;
-        }
-
-        Ok(())
+        write!(f, "{}", self.render())
     }
 }
 
@@ -100,6 +159,7 @@ impl Display for BarItem {
 pub struct StackedBar {
     items: Vec<BarItem>,
     width: usize,
+    outline_labels_format: Option<String>,
 }
 
 impl StackedBar {
@@ -113,7 +173,11 @@ impl StackedBar {
 
         items.sort();
 
-        StackedBar { items, width }
+        StackedBar {
+            items,
+            width,
+            outline_labels_format: None,
+        }
     }
 
     pub fn with_palette(&mut self, palette: &[CustomColor]) -> StackedBar {
@@ -146,12 +210,33 @@ impl StackedBar {
 
         self.clone()
     }
+
+    pub fn with_labels(&mut self, format: &str, always: bool) -> StackedBar {
+        for bar in self.items.iter_mut() {
+            bar.label_format = format.to_string();
+            bar.force_label = always;
+        }
+
+        self.clone()
+    }
+
+    pub fn with_outline_label(&mut self, format: &str) -> StackedBar {
+        self.outline_labels_format = Some(format.to_string());
+
+        self.clone()
+    }
 }
 
 impl Display for StackedBar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for item in &self.items {
             write!(f, "{item}")?;
+        }
+        if let Some(format) = self.outline_labels_format.as_ref() {
+            writeln!(f)?;
+            for item in &self.items {
+                writeln!(f, "{}", item.render_outline_label(format))?;
+            }
         }
 
         Ok(())
