@@ -18,6 +18,9 @@ fn main() {
         CustomColor::new(0, 255, 0),
         CustomColor::new(255, 0, 0),
     ]);
+
+    bars.with_labels("%L - %P %", false);
+
     println!("Planets mass: {bars}");
 
     let mut color_map = HashMap::new();
@@ -27,5 +30,7 @@ fn main() {
     color_map.insert("Mars".to_string(), CustomColor::new(255, 128, 128));
 
     bars = bars.with_color_map(&color_map);
+    bars.with_outline_label("%L - %C Kg");
+
     println!("Planets mass: {bars}");
 }
