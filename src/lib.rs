@@ -243,10 +243,30 @@ impl Display for StackedBar {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn invert_color(color: &CustomColor) -> CustomColor {
+        CustomColor::new(255 - color.r, 255 - color.g, 255 - color.b)
+    }
+
+    fn render_out(widths: &[usize], colors: &[CustomColor]) -> String {
+        assert_eq!(widths.len(), colors.len());
+
+        let mut out = String::new();
+        for (i, width) in widths.iter().enumerate() {
+            out += (0..*width)
+                .map(|_| ' ')
+                .collect::<String>()
+                .on_custom_color(colors[i])
+                .custom_color(invert_color(&colors[i]))
+                .to_string()
+                .as_str();
+        }
+
+        out
+    }
 
     #[test]
     fn sort1() {
@@ -255,12 +275,30 @@ mod tests {
         values.insert("b".to_string(), 1.0);
         values.insert("c".to_string(), 0.5);
 
-        let bar = StackedBar::new(values, 35);
+        let bar = StackedBar::new(values).with_width(35);
 
-        assert_eq!(
-            bar.to_string(),
-            "aaaaaaaaaaaaaaaaaaaabbbbbbbbbbccccc".to_string()
-        );
+        let widths = vec![20, 10, 5];
+
+        let colors = vec![
+            CustomColor {
+                r: 113,
+                g: 16,
+                b: 80,
+            },
+            CustomColor {
+                r: 114,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 115,
+                g: 240,
+                b: 79,
+            },
+        ];
+
+        let out = render_out(&widths, &colors);
+        assert_eq!(bar.to_string(), out);
     }
 
     #[test]
@@ -270,9 +308,29 @@ mod tests {
         values.insert("b".to_string(), 1.0);
         values.insert("c".to_string(), 1.0);
 
-        let bar = StackedBar::new(values, 4);
+        let bar = StackedBar::new(values).with_width(4);
 
-        assert_eq!(bar.to_string(), "aabc".to_string());
+        let widths = vec![2, 1, 1];
+
+        let colors = vec![
+            CustomColor {
+                r: 113,
+                g: 16,
+                b: 80,
+            },
+            CustomColor {
+                r: 114,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 115,
+                g: 0,
+                b: 80,
+            },
+        ];
+        let out = render_out(&widths, &colors);
+        assert_eq!(bar.to_string(), out);
     }
 
     #[test]
@@ -282,9 +340,29 @@ mod tests {
         values.insert("b".to_string(), 1.0);
         values.insert("c".to_string(), 2.0);
 
-        let bar = StackedBar::new(values, 5);
+        let bar = StackedBar::new(values).with_width(5);
 
-        assert_eq!(bar.to_string(), "aaccb".to_string());
+        let widths = vec![2, 2, 1];
+
+        let colors = vec![
+            CustomColor {
+                r: 113,
+                g: 16,
+                b: 80,
+            },
+            CustomColor {
+                r: 115,
+                g: 16,
+                b: 80,
+            },
+            CustomColor {
+                r: 114,
+                g: 0,
+                b: 80,
+            },
+        ];
+        let out = render_out(&widths, &colors);
+        assert_eq!(bar.to_string(), out);
     }
 
     #[test]
@@ -295,12 +373,36 @@ mod tests {
         values.insert("c".to_string(), 1.0);
         values.insert("d".to_string(), 1.0);
 
-        let bar = StackedBar::new(values, 32);
+        let bar = StackedBar::new(values).with_width(32);
 
-        assert_eq!(
-            bar.to_string(),
-            "aaaaaaaabbbbbbbbccccccccdddddddd".to_string()
-        );
+        let colors = vec![
+            CustomColor {
+                r: 113,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 114,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 115,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 116,
+                g: 0,
+                b: 80,
+            },
+        ];
+
+        let widths = vec![8, 8, 8, 8];
+
+        let out = render_out(&widths, &colors);
+
+        assert_eq!(bar.to_string(), out);
     }
 
     #[test]
@@ -311,9 +413,36 @@ mod tests {
         values.insert("c".to_string(), 1.0);
         values.insert("d".to_string(), 2.0);
 
-        let bar = StackedBar::new(values, 10);
+        let bar = StackedBar::new(values).with_width(10);
 
-        assert_eq!(bar.to_string(), "bbbbbbaaa".to_string());
+        let colors = vec![
+            CustomColor {
+                r: 114,
+                g: 68,
+                b: 80,
+            },
+            CustomColor {
+                r: 113,
+                g: 52,
+                b: 80,
+            },
+            CustomColor {
+                r: 116,
+                g: 16,
+                b: 80,
+            },
+            CustomColor {
+                r: 115,
+                g: 0,
+                b: 80,
+            },
+        ];
+
+        let widths = vec![6, 3, 0, 0];
+
+        let out = render_out(&widths, &colors);
+
+        assert_eq!(bar.to_string(), out);
     }
 
     #[test]
@@ -330,9 +459,65 @@ mod tests {
         values.insert("i".to_string(), 1.0);
         values.insert("j".to_string(), 1.0);
 
-        let bar = StackedBar::new(values, 5); //FIXME: Maybe this should fail
+        let bar = StackedBar::new(values).with_width(5); //FIXME: Maybe this should fail
 
-        assert_eq!(bar.to_string(), "".to_string());
+        let colors = vec![
+            CustomColor {
+                r: 113,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 114,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 115,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 116,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 117,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 118,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 119,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 120,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 121,
+                g: 0,
+                b: 80,
+            },
+            CustomColor {
+                r: 122,
+                g: 0,
+                b: 80,
+            },
+        ];
+
+        let widths = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        let out = render_out(&widths, &colors);
+
+        assert_eq!(bar.to_string(), out);
     }
 }
-*/
