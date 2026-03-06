@@ -22,3 +22,5 @@ jobs:
       run: cargo fmt --verbose
     - name: Run clippy
       run: cargo clippy --verbose
+    - name: Run example
+      run: cargo run --example=simple
