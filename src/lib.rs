@@ -1,10 +1,10 @@
 use colored::Colorize;
 use colored::CustomColor;
-use std::{collections::HashMap, fmt::Display, rc::Rc};
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, Clone)]
-struct BarItem {
-    label: Rc<String>,
+struct BarItem<'a> {
+    label: &'a str,
     width: usize,
     color: CustomColor,
     count: f64,
@@ -13,8 +13,8 @@ struct BarItem {
     force_label: bool,
 }
 
-impl BarItem {
-    fn new(label: &str, count: f64, width: usize, sum: f64) -> BarItem {
+impl<'a> BarItem<'a> {
+    fn new(label: &'a str, count: f64, width: usize, sum: f64) -> BarItem<'a> {
         let this_width = ((width as f64 * count) / sum).floor() as usize;
         let hash = Self::compute_hash(label, count);
         let color = CustomColor::new(
@@ -25,7 +25,7 @@ impl BarItem {
 
         // TODO: Avoid to_string(), store &str with lifetime
         BarItem {
-            label: Rc::new(label.to_string()),
+            label,
             width: this_width,
             color,
             count,
@@ -123,21 +123,21 @@ impl BarItem {
     }
 }
 
-impl PartialEq for BarItem {
+impl PartialEq for BarItem<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.width == other.width && other.label == self.label
     }
 }
 
-impl Eq for BarItem {}
+impl Eq for BarItem<'_> {}
 
-impl PartialOrd for BarItem {
+impl PartialOrd for BarItem<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for BarItem {
+impl Ord for BarItem<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let cmp = other.width.cmp(&self.width);
         match cmp {
@@ -147,7 +147,7 @@ impl Ord for BarItem {
     }
 }
 
-impl Display for BarItem {
+impl Display for BarItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.render())
     }
@@ -156,14 +156,14 @@ impl Display for BarItem {
 //TODO: Replace String by anything that can be displayed
 //TODO: Should allow any kind of number as value of the hashmap
 #[derive(Clone)]
-pub struct StackedBar {
-    items: Vec<BarItem>,
+pub struct StackedBar<'a> {
+    items: Vec<BarItem<'a>>,
     width: usize,
     outline_labels_format: Option<String>,
 }
 
-impl StackedBar {
-    pub fn new(map: HashMap<String, f64>) -> StackedBar {
+impl<'a> StackedBar<'a> {
+    pub fn new(map: HashMap<&'a str, f64>) -> StackedBar<'a> {
         let sum = map.values().fold(0.0, |sum, val| sum + *val);
         let width = 32;
         let mut items: Vec<BarItem> = map
@@ -180,7 +180,7 @@ impl StackedBar {
         }
     }
 
-    pub fn with_palette(&mut self, palette: &[CustomColor]) -> StackedBar {
+    pub fn with_palette(&mut self, palette: &[CustomColor]) -> StackedBar<'a> {
         let mut i = 0;
 
         for bar in self.items.iter_mut() {
@@ -191,15 +191,15 @@ impl StackedBar {
         self.clone()
     }
 
-    pub fn with_color_map(&mut self, color_map: &HashMap<String, CustomColor>) -> StackedBar {
+    pub fn with_color_map(&mut self, color_map: &HashMap<&str, CustomColor>) -> StackedBar<'a> {
         for bar in self.items.iter_mut() {
-            bar.color = color_map[bar.label.as_str()];
+            bar.color = color_map[bar.label];
         }
 
         self.clone()
     }
 
-    pub fn with_width(&mut self, width: usize) -> StackedBar {
+    pub fn with_width(&mut self, width: usize) -> StackedBar<'a> {
         self.width = width;
         let sum = self.items.iter().fold(0.0, |sum, val| sum + val.count);
 
@@ -211,7 +211,7 @@ impl StackedBar {
         self.clone()
     }
 
-    pub fn with_labels(&mut self, format: &str, always: bool) -> StackedBar {
+    pub fn with_labels(&mut self, format: &str, always: bool) -> StackedBar<'a> {
         for bar in self.items.iter_mut() {
             bar.label_format = format.to_string();
             bar.force_label = always;
@@ -220,14 +220,14 @@ impl StackedBar {
         self.clone()
     }
 
-    pub fn with_outline_label(&mut self, format: &str) -> StackedBar {
+    pub fn with_outline_label(&mut self, format: &str) -> StackedBar<'a> {
         self.outline_labels_format = Some(format.to_string());
 
         self.clone()
     }
 }
 
-impl Display for StackedBar {
+impl Display for StackedBar<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for item in &self.items {
             write!(f, "{item}")?;
@@ -271,9 +271,9 @@ mod tests {
     #[test]
     fn sort1() {
         let mut values = HashMap::new();
-        values.insert("a".to_string(), 2.0);
-        values.insert("b".to_string(), 1.0);
-        values.insert("c".to_string(), 0.5);
+        values.insert("a", 2.0);
+        values.insert("b", 1.0);
+        values.insert("c", 0.5);
 
         let bar = StackedBar::new(values).with_width(35);
 
@@ -304,9 +304,9 @@ mod tests {
     #[test]
     fn sort2() {
         let mut values = HashMap::new();
-        values.insert("a".to_string(), 2.0);
-        values.insert("b".to_string(), 1.0);
-        values.insert("c".to_string(), 1.0);
+        values.insert("a", 2.0);
+        values.insert("b", 1.0);
+        values.insert("c", 1.0);
 
         let bar = StackedBar::new(values).with_width(4);
 
@@ -336,9 +336,9 @@ mod tests {
     #[test]
     fn sort3() {
         let mut values = HashMap::new();
-        values.insert("a".to_string(), 2.0);
-        values.insert("b".to_string(), 1.0);
-        values.insert("c".to_string(), 2.0);
+        values.insert("a", 2.0);
+        values.insert("b", 1.0);
+        values.insert("c", 2.0);
 
         let bar = StackedBar::new(values).with_width(5);
 
@@ -368,10 +368,10 @@ mod tests {
     #[test]
     fn all_equal() {
         let mut values = HashMap::new();
-        values.insert("a".to_string(), 1.0);
-        values.insert("b".to_string(), 1.0);
-        values.insert("c".to_string(), 1.0);
-        values.insert("d".to_string(), 1.0);
+        values.insert("a", 1.0);
+        values.insert("b", 1.0);
+        values.insert("c", 1.0);
+        values.insert("d", 1.0);
 
         let bar = StackedBar::new(values).with_width(32);
 
@@ -408,10 +408,10 @@ mod tests {
     #[test]
     fn small_width() {
         let mut values = HashMap::new();
-        values.insert("a".to_string(), 10.0);
-        values.insert("b".to_string(), 20.0);
-        values.insert("c".to_string(), 1.0);
-        values.insert("d".to_string(), 2.0);
+        values.insert("a", 10.0);
+        values.insert("b", 20.0);
+        values.insert("c", 1.0);
+        values.insert("d", 2.0);
 
         let bar = StackedBar::new(values).with_width(10);
 
@@ -448,16 +448,16 @@ mod tests {
     #[test]
     fn small_values() {
         let mut values = HashMap::new();
-        values.insert("a".to_string(), 1.0);
-        values.insert("b".to_string(), 1.0);
-        values.insert("c".to_string(), 1.0);
-        values.insert("d".to_string(), 1.0);
-        values.insert("e".to_string(), 1.0);
-        values.insert("f".to_string(), 1.0);
-        values.insert("g".to_string(), 1.0);
-        values.insert("h".to_string(), 1.0);
-        values.insert("i".to_string(), 1.0);
-        values.insert("j".to_string(), 1.0);
+        values.insert("a", 1.0);
+        values.insert("b", 1.0);
+        values.insert("c", 1.0);
+        values.insert("d", 1.0);
+        values.insert("e", 1.0);
+        values.insert("f", 1.0);
+        values.insert("g", 1.0);
+        values.insert("h", 1.0);
+        values.insert("i", 1.0);
+        values.insert("j", 1.0);
 
         let bar = StackedBar::new(values).with_width(5); //FIXME: Maybe this should fail
 

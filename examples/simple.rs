@@ -6,9 +6,9 @@ use stackedbars::StackedBar;
 fn main() {
     let mut map = HashMap::new();
 
-    map.insert("Earth".to_string(), 5972.0 * 10e21);
-    map.insert("Venus".to_string(), 4867.0 * 10e21);
-    map.insert("Mars".to_string(), 641.0 * 10e21);
+    map.insert("Earth", 5972.0 * 10e21);
+    map.insert("Venus", 4867.0 * 10e21);
+    map.insert("Mars", 641.0 * 10e21);
 
     let mut bars = StackedBar::new(map).with_width(150);
     println!("Planets mass: {bars}");
@@ -25,9 +25,9 @@ fn main() {
 
     let mut color_map = HashMap::new();
 
-    color_map.insert("Earth".to_string(), CustomColor::new(128, 128, 255));
-    color_map.insert("Venus".to_string(), CustomColor::new(128, 255, 128));
-    color_map.insert("Mars".to_string(), CustomColor::new(255, 128, 128));
+    color_map.insert("Earth", CustomColor::new(128, 128, 255));
+    color_map.insert("Venus", CustomColor::new(128, 255, 128));
+    color_map.insert("Mars", CustomColor::new(255, 128, 128));
 
     bars = bars.with_color_map(&color_map);
     bars.with_outline_label("%L - %C Kg");
